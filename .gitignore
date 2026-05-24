@@ -1,8 +1,8 @@
- bin/
-obj/
-.vs/
+**/bin/
+**/obj/
+**/.vs/
 *.user
-node_modules/
+**/node_modules/
 *.env
 **/appsettings.Development.json
 **/secrets.json
