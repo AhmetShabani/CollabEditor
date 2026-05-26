@@ -18,11 +18,11 @@ namespace CollabEditor.API.Hubs
         }
         public async Task SendCodeChange(string documentId,string content)
         {
-            await Clients.Group(documentId).SendAsync("CodeChanged", content);
+            await Clients.OthersInGroup(documentId).SendAsync("CodeChanged", content);
         }
         public async Task SendCursorPosition(string documentId, int line, int column) 
         {
-            await Clients.Group(documentId).SendAsync("CursorMoved", Context.ConnectionId, line, column);
+            await Clients.OthersInGroup(documentId).SendAsync("CursorMoved", Context.ConnectionId, line, column);
         }
     }
 }

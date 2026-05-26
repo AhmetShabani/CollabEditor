@@ -4,6 +4,9 @@
 *.user
 **/node_modules/
 *.env
+.env
+.env.local
+.env.production
 **/appsettings.Development.json
 **/secrets.json
 .github/
