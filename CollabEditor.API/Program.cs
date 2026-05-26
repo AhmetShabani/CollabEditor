@@ -1,4 +1,5 @@
 using CollabEditor.API.Data;
+using CollabEditor.API.Hubs;
 using CollabEditor.API.Models;
 using CollabEditor.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -13,6 +14,23 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+//SignalR
+builder.Services.AddSignalR();
+
+//CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy", builder =>
+    {
+        builder
+            .WithOrigins("http://localhost:5173") // React dev server
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials(); // Required for SignalR
+    });
+});
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -68,6 +86,19 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:SecretKey"]!))
     };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 //Documents Service
 builder.Services.AddScoped<IDocumentService, DocumentService>();
@@ -80,6 +111,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseCors("CorsPolicy");
 
 app.UseHttpsRedirection();
 
@@ -87,5 +119,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<CodeHub>("/hubs/code");
 
 app.Run();

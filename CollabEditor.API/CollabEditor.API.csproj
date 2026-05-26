@@ -19,7 +19,6 @@
 
   <ItemGroup>
     <Folder Include="Migrations\" />
-    <Folder Include="Hubs\" />
     <Folder Include="Middleware\" />
   </ItemGroup>
 
