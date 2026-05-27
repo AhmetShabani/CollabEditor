@@ -5,6 +5,12 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import createConnection from '../services/signalRService';
 
+const getColorForUser = (connectionId) => {
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
+    const index = connectionId.charCodeAt(0) % colors.length;
+    return colors[index];
+};
+
 const EditorPage = () => {
     const { documentId } = useParams();
     const { token } = useAuth();
@@ -16,6 +22,9 @@ const EditorPage = () => {
     const [review, setReview] = useState('');
     const isRemoteChange = useRef(false);
     const connectionRef = useRef(null);
+    const editorRef = useRef(null);
+    const cursorDecorations = useRef({});
+    const cursorTimeout = useRef(null);
 
     useEffect(() => {
         fetchDocument();
@@ -58,6 +67,54 @@ const EditorPage = () => {
 
             connection.on('UserLeft', (connectionId) => {
                 setConnectedUsers(prev => prev.filter(u => u !== connectionId));
+                // Remove cursor decoration when user leaves
+                if (editorRef.current && cursorDecorations.current[connectionId]) {
+                    editorRef.current.deltaDecorations(
+                        cursorDecorations.current[connectionId], []
+                    );
+                    delete cursorDecorations.current[connectionId];
+                }
+            });
+
+            connection.on('CursorMoved', (connectionId, line, column) => {
+                if (!editorRef.current) return;
+                const color = getColorForUser(connectionId);
+                const newDecorations = [{
+                    range: {
+                        startLineNumber: line,
+                        startColumn: column,
+                        endLineNumber: line,
+                        endColumn: column + 1
+                    },
+                    options: {
+                        className: `cursor-${connectionId.substring(0, 8)}`,
+                        beforeContentClassName: 'cursor-label',
+                        stickiness: 1,
+                        after: {
+                            content: ' ',
+                            inlineClassName: `cursor-decoration`,
+                        }
+                    }
+                }];
+
+                // Add dynamic style for this cursor
+                const styleId = `cursor-style-${connectionId.substring(0, 8)}`;
+                let styleEl = window.document.getElementById(styleId);
+                if (!styleEl) {
+                    styleEl = window.document.createElement('style');
+                    styleEl.id = styleId;
+                    window.document.head.appendChild(styleEl);
+                }
+                styleEl.innerHTML = `
+                    .cursor-${connectionId.substring(0, 8)} { 
+                        border-left: 2px solid ${color}; 
+                    }
+                `;
+
+                const oldDecorations = cursorDecorations.current[connectionId] || [];
+                cursorDecorations.current[connectionId] = editorRef.current.deltaDecorations(
+                    oldDecorations, newDecorations
+                );
             });
 
             await connection.start();
@@ -77,6 +134,24 @@ const EditorPage = () => {
         if (connectionRef.current) {
             await connectionRef.current.invoke('SendCodeChange', documentId, value);
         }
+    };
+
+    const handleEditorMount = (editor) => {
+        editorRef.current = editor;
+
+        editor.onDidChangeCursorPosition((e) => {
+            clearTimeout(cursorTimeout.current);
+            cursorTimeout.current = setTimeout(() => {
+                if (connectionRef.current) {
+                    connectionRef.current.invoke(
+                        'SendCursorPosition',
+                        documentId,
+                        e.position.lineNumber,
+                        e.position.column
+                    ).catch(() => {});
+                }
+            }, 100);
+        });
     };
 
     const saveDocument = async () => {
@@ -124,11 +199,23 @@ const EditorPage = () => {
                     {reviewing ? 'Reviewing...' : '🤖 AI Review'}
                 </button>
             </div>
+            <div style={{ display: 'flex', gap: '8px', padding: '4px' }}>
+                {connectedUsers.map(id => (
+                    <span key={id} style={{
+                        background: getColorForUser(id),
+                        borderRadius: '50%',
+                        width: '12px',
+                        height: '12px',
+                        display: 'inline-block'
+                    }} title={id} />
+                ))}
+            </div>
             <Editor
                 height="70vh"
                 language={document?.language || 'javascript'}
                 value={content}
                 onChange={handleEditorChange}
+                onMount={handleEditorMount}
                 theme="vs-dark"
                 options={{
                     fontSize: 14,
