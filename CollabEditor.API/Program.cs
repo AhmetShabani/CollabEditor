@@ -103,6 +103,12 @@ builder.Services.AddAuthentication(options =>
 //Documents Service
 builder.Services.AddScoped<IDocumentService, DocumentService>();
 
+//AI Service
+builder.Services.Configure<GroqSettings>(
+    builder.Configuration.GetSection("GroqSettings"));
+builder.Services.AddHttpClient<AIService>();
+builder.Services.AddScoped<IAIService, AIService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

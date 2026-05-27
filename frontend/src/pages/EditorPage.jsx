@@ -12,6 +12,8 @@ const EditorPage = () => {
     const [content, setContent] = useState('');
     const [connectedUsers, setConnectedUsers] = useState([]);
     const [saving, setSaving] = useState(false);
+    const [reviewing, setReviewing] = useState(false);
+    const [review, setReview] = useState('');
     const isRemoteChange = useRef(false);
     const connectionRef = useRef(null);
 
@@ -94,15 +96,36 @@ const EditorPage = () => {
         }
     };
 
+    const requestAIReview = async () => {
+        setReviewing(true);
+        setReview('');
+        try {
+            const response = await api.post('/ai/review', {
+                code: content,
+                language: document?.language || 'javascript'
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setReview(response.data.review);
+        } catch (err) {
+            console.error('AI review failed', err);
+        } finally {
+            setReviewing(false);
+        }
+    };
+
     return (
         <div>
             <div>
                 <h2>{document?.title}</h2>
                 <span>Connected users: {connectedUsers.length + 1}</span>
                 <button onClick={saveDocument}>{saving ? 'Saving...' : 'Save'}</button>
+                <button onClick={requestAIReview} disabled={reviewing}>
+                    {reviewing ? 'Reviewing...' : '🤖 AI Review'}
+                </button>
             </div>
             <Editor
-                height="90vh"
+                height="70vh"
                 language={document?.language || 'javascript'}
                 value={content}
                 onChange={handleEditorChange}
@@ -113,6 +136,18 @@ const EditorPage = () => {
                     automaticLayout: true,
                 }}
             />
+            {review && (
+                <div style={{
+                    padding: '10px',
+                    background: '#1e1e1e',
+                    color: '#fff',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: '300px',
+                    overflow: 'auto'
+                }}>
+                    {review}
+                </div>
+            )}
         </div>
     );
 };
