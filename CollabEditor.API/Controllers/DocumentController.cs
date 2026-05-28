@@ -93,5 +93,20 @@ namespace CollabEditor.API.Controllers
             }
         }
 
+        [HttpGet("{id}/chat")]
+        public async Task<IActionResult> GetChatHistory(Guid id)
+        {
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var messages = await _documentService.GetChatHistoryAsync(id, userId);
+                return Ok(messages);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
     }
 }

@@ -14,7 +14,7 @@ const getColorForUser = (connectionId) => {
 
 const EditorPage = () => {
     const { documentId } = useParams();
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     const navigate = useNavigate();
     const [document, setDocument] = useState(null);
     const [content, setContent] = useState('');
@@ -27,6 +27,7 @@ const EditorPage = () => {
     const [showChat, setShowChat] = useState(false);
     const [messages, setMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
+    const [unreadCount, setUnreadCount] = useState(0);
     const isRemoteChange = useRef(false);
     const isDirty = useRef(false);
     const connectionRef = useRef(null);
@@ -36,9 +37,16 @@ const EditorPage = () => {
     const cursorDecorations = useRef({});
     const cursorTimeout = useRef(null);
     const messagesEndRef = useRef(null);
+    const initialMessageCount = useRef(0);
+    const showChatRef = useRef(false);
+
+    useEffect(() => {
+        showChatRef.current = showChat;
+    }, [showChat]);
 
     useEffect(() => {
         fetchDocument();
+        fetchChatHistory();
         setupSignalR();
 
         return () => {
@@ -50,7 +58,6 @@ const EditorPage = () => {
         };
     }, [documentId]);
 
-    // Auto-save every 30 seconds only when dirty
     useEffect(() => {
         if (!document) return;
         const interval = setInterval(() => {
@@ -62,7 +69,6 @@ const EditorPage = () => {
         return () => clearInterval(interval);
     }, [document]);
 
-    // Scroll to bottom when new message arrives
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
@@ -78,6 +84,18 @@ const EditorPage = () => {
             contentRef.current = response.data.content || '';
         } catch (err) {
             console.error('Failed to fetch document', err);
+        }
+    };
+
+    const fetchChatHistory = async () => {
+        try {
+            const response = await api.get(`/document/${documentId}/chat`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setMessages(response.data);
+            initialMessageCount.current = response.data.length;
+        } catch (err) {
+            console.error('Failed to fetch chat history', err);
         }
     };
 
@@ -108,6 +126,9 @@ const EditorPage = () => {
 
             connection.on('ChatMessage', (username, message, timestamp) => {
                 setMessages(prev => [...prev, { username, message, timestamp }]);
+                if (username !== user?.username && !showChatRef.current) {
+                    setUnreadCount(prev => prev + 1);
+                }
             });
 
             connection.on('CursorMoved', (connectionId, line, column) => {
@@ -236,7 +257,6 @@ const EditorPage = () => {
 
     return (
         <div className="h-screen bg-gray-950 flex flex-col">
-            {/* Navbar */}
             <nav className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <button
@@ -256,7 +276,6 @@ const EditorPage = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* Connected users */}
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded-lg">
                             <div className="w-2 h-2 rounded-full bg-green-400" />
@@ -282,10 +301,22 @@ const EditorPage = () => {
                     </div>
 
                     <button
-                        onClick={() => { setShowChat(!showChat); setShowReview(false); }}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${showChat ? 'bg-green-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
+                        onClick={() => {
+                            setShowChat(!showChat);
+                            setShowReview(false);
+                            setUnreadCount(0);
+                        }}
+                        className={`relative px-4 py-1.5 rounded-lg text-sm font-medium transition ${showChat ? 'bg-green-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
                     >
-                        💬 Chat {messages.length > 0 && `(${messages.length})`}
+                        💬 Chat
+                        {unreadCount > 0 && !showChat && (
+                            <>
+                                <span className="ml-1 text-xs">
+                                    ({unreadCount > 10 ? '10+' : unreadCount})
+                                </span>
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
+                            </>
+                        )}
                     </button>
 
                     <button
@@ -306,7 +337,6 @@ const EditorPage = () => {
                 </div>
             </nav>
 
-            {/* Editor + Side Panel */}
             <div className="flex flex-1 overflow-hidden">
                 <div className={showSidePanel ? 'w-2/3' : 'w-full'}>
                     <Editor
@@ -325,7 +355,6 @@ const EditorPage = () => {
                     />
                 </div>
 
-                {/* AI Review Panel */}
                 {showReview && (
                     <div className="w-1/3 bg-gray-900 border-l border-gray-800 flex flex-col">
                         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
@@ -378,7 +407,6 @@ const EditorPage = () => {
                     </div>
                 )}
 
-                {/* Chat Panel */}
                 {showChat && (
                     <div className="w-1/3 bg-gray-900 border-l border-gray-800 flex flex-col">
                         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
@@ -391,7 +419,6 @@ const EditorPage = () => {
                             </button>
                         </div>
 
-                        {/* Messages */}
                         <div className="flex-1 overflow-auto p-4 space-y-3">
                             {messages.length === 0 ? (
                                 <div className="text-gray-500 text-center text-sm mt-8">
@@ -399,16 +426,16 @@ const EditorPage = () => {
                                 </div>
                             ) : (
                                 messages.map((msg, index) => (
-                                    <div key={index} className="flex flex-col gap-0.5">
+                                    <div key={index} className={`flex flex-col gap-0.5 ${msg.username === user?.username ? 'items-end' : 'items-start'}`}>
                                         <div className="flex items-center gap-2">
                                             <span className="text-blue-400 text-xs font-medium">
-                                                {msg.username}
+                                                {msg.username === user?.username ? 'You' : msg.username}
                                             </span>
                                             <span className="text-gray-600 text-xs">
                                                 {new Date(msg.timestamp).toLocaleTimeString()}
                                             </span>
                                         </div>
-                                        <p className="text-gray-300 text-sm bg-gray-800 px-3 py-2 rounded-lg">
+                                        <p className={`text-sm px-3 py-2 rounded-lg max-w-xs ${msg.username === user?.username ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300'}`}>
                                             {msg.message}
                                         </p>
                                     </div>
@@ -417,7 +444,6 @@ const EditorPage = () => {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Input */}
                         <div className="p-3 border-t border-gray-800 flex gap-2">
                             <input
                                 type="text"

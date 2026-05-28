@@ -131,5 +131,27 @@ namespace CollabEditor.API.Services
             return true;
             
         }
+
+        public async Task<IEnumerable<object>> GetChatHistoryAsync(Guid documentId, Guid userId)
+        {
+            var document = await _context.Documents
+                .FirstOrDefaultAsync(d => d.Id == documentId && d.OwnerId == userId);
+
+            if (document == null)
+                throw new Exception("Document not found");
+
+            var messages = await _context.ChatMessages
+                .Where(m => m.DocumentId == documentId)
+                .OrderBy(m => m.CreatedAt)
+                .Select(m => new
+                {
+                    username = m.Username,
+                    message = m.Message,
+                    timestamp = m.CreatedAt
+                })
+                .ToListAsync();
+
+            return messages;
+        }
     }
 }

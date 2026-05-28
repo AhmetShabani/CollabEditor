@@ -12,6 +12,8 @@ namespace CollabEditor.API.Services
         Task<DocumentResponse> UpdateAsync(Guid documentId, Guid userId,UpdateDocumentRequest update);
 
         Task<bool> DeleteAsync(Guid documentId, Guid userId);
-        
+
+        Task<IEnumerable<object>> GetChatHistoryAsync(Guid documentId, Guid userId);
+
     }
 }
