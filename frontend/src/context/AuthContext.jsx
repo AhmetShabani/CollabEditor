@@ -9,16 +9,17 @@ export const AuthProvider = ({ children }) => {
     });
     const [token, setToken] = useState(localStorage.getItem('token'));
 
-    const login = (data) => {
-        setToken(data.token);
-        setUser({ username: data.username, role: data.role });
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('refreshToken', data.refreshToken);
-        localStorage.setItem('user', JSON.stringify({ 
-            username: data.username, 
-            role: data.role 
-        }));
-    };
+        const login = (data) => {
+            setToken(data.token);
+            setUser({ username: data.username, role: data.role, id: data.id });
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('refreshToken', data.refreshToken);
+            localStorage.setItem('user', JSON.stringify({ 
+                username: data.username, 
+                role: data.role,
+                id: data.id
+            }));
+        };
 
     const logout = () => {
         setToken(null);

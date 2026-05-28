@@ -17,7 +17,7 @@ namespace CollabEditor.API.Services
     {
         private readonly AppDbContext _context;
         private readonly JwtSettings _jwtSettings;
-        public AuthService(AppDbContext context,IOptions<JwtSettings> jwtSettings)
+        public AuthService(AppDbContext context, IOptions<JwtSettings> jwtSettings)
         {
             _context = context;
             _jwtSettings = jwtSettings.Value;
@@ -58,12 +58,13 @@ namespace CollabEditor.API.Services
         public async Task<AuthResponse> LoginAsync(string email, string password)
         {
             var user = await _context.Users.FirstOrDefaultAsync(x => x.Email == email);
-            if(user == null)
+            if (user == null)
             {
                 throw new Exception("User not found");
             }
             bool isValid = BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
-            if (!isValid) {
+            if (!isValid)
+            {
                 throw new Exception("Wrong password");
             }
             var token = GenerateJwtToken(user);
@@ -76,10 +77,10 @@ namespace CollabEditor.API.Services
                 Token = token,
                 RefreshToken = newRefreshToken,
                 Username = user.Username,
-                Role = user.Role
+                Role = user.Role,
+                Id = user.Id
+            };
 
-            }; 
-            
 
         }
 
@@ -88,7 +89,8 @@ namespace CollabEditor.API.Services
             var user = await _context.Users.FirstOrDefaultAsync(x => x.RefreshToken == refreshToken);
             if (user == null) throw new Exception("Invalid refresh token");
 
-            if (user.RefreshTokenExpiry < DateTime.UtcNow) {
+            if (user.RefreshTokenExpiry < DateTime.UtcNow)
+            {
                 throw new Exception("Refresh token expired");
             }
             var token = GenerateJwtToken(user);
@@ -124,13 +126,13 @@ namespace CollabEditor.API.Services
                 new Claim(ClaimTypes.Role, user.Role)
             };
 
-                    var token = new JwtSecurityToken(
-                        issuer: _jwtSettings.Issuer,
-                        audience: _jwtSettings.Audience,
-                        claims: claims,
-                        expires: DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes),
-                        signingCredentials: credentials
-                    );
+            var token = new JwtSecurityToken(
+                issuer: _jwtSettings.Issuer,
+                audience: _jwtSettings.Audience,
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes),
+                signingCredentials: credentials
+            );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }

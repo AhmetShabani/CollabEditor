@@ -153,5 +153,21 @@ namespace CollabEditor.API.Services
 
             return messages;
         }
+
+        public async Task ClearChatAsync(Guid documentId, Guid userId)
+        {
+            var document = await _context.Documents
+                .FirstOrDefaultAsync(d => d.Id == documentId && d.OwnerId == userId);
+
+            if (document == null)
+                throw new Exception("Document not found or you are not the owner");
+
+            var messages = _context.ChatMessages
+                .Where(m => m.DocumentId == documentId);
+
+            _context.ChatMessages.RemoveRange(messages);
+            await _context.SaveChangesAsync();
+        }
+
     }
 }

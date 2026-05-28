@@ -246,6 +246,18 @@ const EditorPage = () => {
         setChatInput('');
     };
 
+    const clearChat = async () => {
+        try {
+            await api.delete(`/document/${documentId}/chat`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setMessages([]);
+            initialMessageCount.current = 0;
+        } catch (err) {
+            console.error('Failed to clear chat', err);
+        }
+    };
+
     const handleChatKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -254,6 +266,7 @@ const EditorPage = () => {
     };
 
     const showSidePanel = showReview || showChat;
+    const isOwner = document?.ownerId === user?.id;
 
     return (
         <div className="h-screen bg-gray-950 flex flex-col">
@@ -411,12 +424,22 @@ const EditorPage = () => {
                     <div className="w-1/3 bg-gray-900 border-l border-gray-800 flex flex-col">
                         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
                             <h3 className="text-white font-medium text-sm">💬 Chat</h3>
-                            <button
-                                onClick={() => setShowChat(false)}
-                                className="text-gray-500 hover:text-white transition"
-                            >
-                                ✕
-                            </button>
+                            <div className="flex items-center gap-2">
+                                {isOwner && (
+                                    <button
+                                        onClick={clearChat}
+                                        className="text-red-400 hover:text-red-300 text-xs transition"
+                                    >
+                                        Clear
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setShowChat(false)}
+                                    className="text-gray-500 hover:text-white transition"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-auto p-4 space-y-3">

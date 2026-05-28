@@ -15,5 +15,7 @@ namespace CollabEditor.API.Services
 
         Task<IEnumerable<object>> GetChatHistoryAsync(Guid documentId, Guid userId);
 
+        Task ClearChatAsync(Guid documentId, Guid userId);
+
     }
 }

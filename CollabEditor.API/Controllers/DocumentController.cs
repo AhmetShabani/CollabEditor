@@ -108,5 +108,20 @@ namespace CollabEditor.API.Controllers
             }
         }
 
+        [HttpDelete("{id}/chat")]
+        public async Task<IActionResult> ClearChat(Guid id)
+        {
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                await _documentService.ClearChatAsync(id, userId);
+                return Ok(new { message = "Chat cleared" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
     }
 }
