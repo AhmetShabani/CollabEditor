@@ -16,6 +16,9 @@ namespace CollabEditor.API.Services
         Task<IEnumerable<object>> GetChatHistoryAsync(Guid documentId, Guid userId);
 
         Task ClearChatAsync(Guid documentId, Guid userId);
-
+        Task<CreateInviteResponse> CreateInviteAsync(Guid documentId, Guid userId);
+        Task<JoinDocumentResponse> JoinByInviteAsync(string token, Guid userId);
+        Task<IEnumerable<object>> GetCollaboratorsAsync(Guid documentId, Guid userId);
+        Task RemoveCollaboratorAsync(Guid documentId, Guid collaboratorUserId, Guid ownerId);
     }
 }

@@ -123,5 +123,65 @@ namespace CollabEditor.API.Controllers
             }
         }
 
+        [HttpPost("{id}/invite")]
+        public async Task<IActionResult> CreateInvite(Guid id)
+        {
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var result = await _documentService.CreateInviteAsync(id, userId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("join/{token}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> JoinByInvite(string token)
+        {
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var result = await _documentService.JoinByInviteAsync(token, userId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("{id}/collaborators")]
+        public async Task<IActionResult> GetCollaborators(Guid id)
+        {
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var result = await _documentService.GetCollaboratorsAsync(id, userId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpDelete("{id}/collaborators/{collaboratorUserId}")]
+        public async Task<IActionResult> RemoveCollaborator(Guid id, Guid collaboratorUserId)
+        {
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                await _documentService.RemoveCollaboratorAsync(id, collaboratorUserId, userId);
+                return Ok(new { message = "Collaborator removed" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

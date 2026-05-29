@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import EditorPage from './pages/EditorPage';
+import InvitePage from './pages/InvitePage';
 
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated } = useAuth();
@@ -24,6 +25,11 @@ const App = () => {
                 <Route path="/editor/:documentId" element={
                     <ProtectedRoute>
                         <EditorPage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/invite/:token" element={
+                    <ProtectedRoute>
+                        <InvitePage />
                     </ProtectedRoute>
                 } />
                 <Route path="/" element={<Navigate to="/dashboard" />} />

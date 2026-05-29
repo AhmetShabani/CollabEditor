@@ -19,12 +19,14 @@ namespace CollabEditor.API.Hubs
         public async Task JoinDocument(string documentId)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, documentId);
-            await Clients.OthersInGroup(documentId).SendAsync("UserJoined", Context.ConnectionId);
+            var username = Context.User?.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
+            await Clients.OthersInGroup(documentId).SendAsync("UserJoined", Context.ConnectionId, username);
         }
         public async Task LeaveDocument(string documentId)
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, documentId);
-            await Clients.Group(documentId).SendAsync("UserLeft", Context.ConnectionId);
+            var username = Context.User?.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
+            await Clients.Group(documentId).SendAsync("UserLeft", Context.ConnectionId, username);
         }
         public async Task SendCodeChange(string documentId,string content)
         {

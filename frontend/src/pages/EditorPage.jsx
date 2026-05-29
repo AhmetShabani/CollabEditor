@@ -28,6 +28,8 @@ const EditorPage = () => {
     const [messages, setMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const [unreadCount, setUnreadCount] = useState(0);
+    const [inviteLink, setInviteLink] = useState('');
+    const [showInvite, setShowInvite] = useState(false);
     const isRemoteChange = useRef(false);
     const isDirty = useRef(false);
     const connectionRef = useRef(null);
@@ -39,6 +41,8 @@ const EditorPage = () => {
     const messagesEndRef = useRef(null);
     const initialMessageCount = useRef(0);
     const showChatRef = useRef(false);
+    const [showMembers, setShowMembers] = useState(false);
+    const [collaborators, setCollaborators] = useState([]);
 
     useEffect(() => {
         showChatRef.current = showChat;
@@ -47,7 +51,9 @@ const EditorPage = () => {
     useEffect(() => {
         fetchDocument();
         fetchChatHistory();
+        fetchCollaborators();
         setupSignalR();
+        
 
         return () => {
             if (connectionRef.current) {
@@ -110,12 +116,13 @@ const EditorPage = () => {
                 setContent(newContent);
             });
 
-            connection.on('UserJoined', (connectionId) => {
-                setConnectedUsers(prev => [...prev, connectionId]);
+            connection.on('UserJoined', (connectionId, username) => {
+                setConnectedUsers(prev => [...prev, { connectionId, username }]);
             });
 
             connection.on('UserLeft', (connectionId) => {
-                setConnectedUsers(prev => prev.filter(u => u !== connectionId));
+                setConnectedUsers(prev => prev.filter(u => u.connectionId !== connectionId));
+                // update cursor cleanup too
                 if (editorRef.current && cursorDecorations.current[connectionId]) {
                     editorRef.current.deltaDecorations(
                         cursorDecorations.current[connectionId], []
@@ -258,6 +265,29 @@ const EditorPage = () => {
         }
     };
 
+    const generateInvite = async () => {
+        try {
+            const response = await api.post(`/document/${documentId}/invite`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setInviteLink(response.data.inviteLink);
+            setShowInvite(true);
+        } catch (err) {
+            console.error('Failed to generate invite', err);
+        }
+    };
+
+    const fetchCollaborators = async () => {
+        try {
+            const response = await api.get(`/document/${documentId}/collaborators`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setCollaborators(response.data);
+        } catch (err) {
+            console.error('Failed to fetch collaborators', err);
+        }
+    };
+
     const handleChatKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -265,8 +295,19 @@ const EditorPage = () => {
         }
     };
 
-    const showSidePanel = showReview || showChat;
+    const showSidePanel = showReview || showChat || showMembers;
     const isOwner = document?.ownerId === user?.id;
+
+    const removeCollaborator = async (collaboratorUserId) => {
+    try {
+        await api.delete(`/document/${documentId}/collaborators/${collaboratorUserId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        setCollaborators(prev => prev.filter(c => c.userId !== collaboratorUserId));
+    } catch (err) {
+        console.error('Failed to remove collaborator', err);
+    }
+};
 
     return (
         <div className="h-screen bg-gray-950 flex flex-col">
@@ -294,17 +335,17 @@ const EditorPage = () => {
                             <div className="w-2 h-2 rounded-full bg-green-400" />
                             <span className="text-gray-300 text-xs">You</span>
                         </div>
-                        {connectedUsers.map(id => (
+                        {connectedUsers.map(u => (
                             <div
-                                key={id}
+                                key={u.connectionId}
                                 className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded-lg"
                             >
                                 <div
-                                    style={{ background: getColorForUser(id) }}
+                                    style={{ background: getColorForUser(u.connectionId) }}
                                     className="w-2 h-2 rounded-full"
                                 />
                                 <span className="text-gray-300 text-xs">
-                                    User {id.substring(0, 4)}
+                                    {u.username}
                                 </span>
                             </div>
                         ))}
@@ -338,6 +379,22 @@ const EditorPage = () => {
                         className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50"
                     >
                         {reviewing ? '🤖 Reviewing...' : '🤖 AI Review'}
+                    </button>
+
+                    {isOwner && (
+                        <button
+                            onClick={generateInvite}
+                            className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-1.5 rounded-lg text-sm font-medium transition"
+                        >
+                            🔗 Invite
+                        </button>
+                    )}
+
+                    <button
+                        onClick={() => { setShowMembers(!showMembers); setShowChat(false); setShowReview(false); }}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${showMembers ? 'bg-green-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
+                    >
+                        👥 Members ({collaborators.length})
                     </button>
 
                     <button
@@ -440,6 +497,7 @@ const EditorPage = () => {
                                     ✕
                                 </button>
                             </div>
+                            
                         </div>
 
                         <div className="flex-1 overflow-auto p-4 space-y-3">
@@ -484,8 +542,98 @@ const EditorPage = () => {
                             </button>
                         </div>
                     </div>
+
+
                 )}
+                {showMembers && (
+    <div className="w-1/3 bg-gray-900 border-l border-gray-800 flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+            <h3 className="text-white font-medium text-sm">👥 Members</h3>
+            <button
+                onClick={() => setShowMembers(false)}
+                className="text-gray-500 hover:text-white transition"
+            >
+                ✕
+            </button>
+        </div>
+        <div className="flex-1 overflow-auto p-4 space-y-4">
+            {/* Owner */}
+            <div>
+                <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">Owner</p>
+                {collaborators.filter(c => c.role === 'Owner').map((c, i) => (
+                    <div key={i} className="flex items-center gap-3 bg-gray-800 px-3 py-2 rounded-lg">
+                        <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                            {c.username[0].toUpperCase()}
+                        </div>
+                        <div>
+                            <p className="text-white text-sm font-medium">{c.username}</p>
+                            <p className="text-gray-500 text-xs">Owner</p>
+                        </div>
+                    </div>
+                ))}
             </div>
+            {/* Collaborators */}
+            {collaborators.filter(c => c.role !== 'Owner').length > 0 && (
+                <div>
+                    <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">Collaborators</p>
+                    {collaborators.filter(c => c.role !== 'Owner').map((c, i) => (
+                        <div key={i} className="flex items-center gap-3 bg-gray-800 px-3 py-2 rounded-lg mb-2">
+                            <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                                {c.username[0].toUpperCase()}
+                            </div>
+                            <div>
+                                <p className="text-white text-sm font-medium">{c.username}</p>
+                                <p className="text-gray-500 text-xs">Collaborator</p>
+                            </div>
+                            {isOwner && (
+                                <button
+                                    className="ml-auto text-red-400 hover:text-red-300 text-xs transition"
+                                    onClick={() => removeCollaborator(c.userId)}
+                                >
+                                    Remove
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+            {collaborators.filter(c => c.role !== 'Owner').length === 0 && (
+                <p className="text-gray-500 text-sm text-center mt-4">No collaborators yet. Use the Invite button to add people.</p>
+            )}
+        </div>
+    </div>
+)}
+            </div>
+
+            {/* Invite Modal */}
+            {showInvite && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-md w-full mx-4">
+                        <h3 className="text-white font-semibold mb-4">🔗 Invite Collaborator</h3>
+                        <p className="text-gray-400 text-sm mb-3">Share this link — expires in 7 days:</p>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={inviteLink}
+                                readOnly
+                                className="flex-1 bg-gray-800 text-gray-300 border border-gray-700 rounded-lg px-3 py-2 text-sm"
+                            />
+                            <button
+                                onClick={() => navigator.clipboard.writeText(inviteLink)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition"
+                            >
+                                Copy
+                            </button>
+                        </div>
+                        <button
+                            onClick={() => setShowInvite(false)}
+                            className="mt-4 w-full text-gray-500 hover:text-white text-sm transition"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
