@@ -109,6 +109,9 @@ builder.Services.Configure<GroqSettings>(
 builder.Services.AddHttpClient<AIService>();
 builder.Services.AddScoped<IAIService, AIService>();
 
+//Friend Service
+builder.Services.AddScoped<IFriendService, FriendService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
