@@ -15,6 +15,7 @@ namespace CollabEditor.API.Data
         public DbSet<DocumentInvite> DocumentInvites { get; set; } = null!;
 
         public DbSet<Friendship> Friendships { get; set; } = null!;
+        public DbSet<Notification> Notifications { get; set; } = null!;
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<DocumentCollaborator>()
@@ -43,6 +44,12 @@ namespace CollabEditor.API.Data
                 .WithMany()
                 .HasForeignKey(f => f.ReceiverId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Notification>()
+            .HasOne(n => n.User)
+            .WithMany()
+            .HasForeignKey(n => n.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }

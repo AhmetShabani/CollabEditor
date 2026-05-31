@@ -124,12 +124,12 @@ namespace CollabEditor.API.Controllers
         }
 
         [HttpPost("{id}/invite")]
-        public async Task<IActionResult> CreateInvite(Guid id)
+        public async Task<IActionResult> CreateInvite(Guid id, [FromQuery] Guid? friendUserId = null)
         {
             try
             {
                 var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                var result = await _documentService.CreateInviteAsync(id, userId);
+                var result = await _documentService.CreateInviteAsync(id, userId, friendUserId);
                 return Ok(result);
             }
             catch (Exception ex)

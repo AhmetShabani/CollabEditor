@@ -10,10 +10,12 @@ namespace CollabEditor.API.Services
     public class DocumentService : IDocumentService
     {
         private readonly AppDbContext _context;
+        private readonly INotificationService _notificationService;
 
-        public DocumentService(AppDbContext context)
+        public DocumentService(AppDbContext context, INotificationService notificationService)
         {
             _context = context;
+            _notificationService = notificationService;
         }
         public async Task<DocumentResponse> CreateAsync(CreateDocumentRequest createDocumentRequest, Guid userId)
         {
@@ -189,7 +191,7 @@ namespace CollabEditor.API.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task<CreateInviteResponse> CreateInviteAsync(Guid documentId, Guid userId)
+        public async Task<CreateInviteResponse> CreateInviteAsync(Guid documentId, Guid userId, Guid? friendUserId = null)
         {
             var document = await _context.Documents
                 .FirstOrDefaultAsync(d => d.Id == documentId && d.OwnerId == userId);
@@ -206,12 +208,24 @@ namespace CollabEditor.API.Services
                 DocumentId = documentId,
                 Token = token,
                 CreatedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddDays(7),
+                ExpiresAt = DateTime.UtcNow.AddDays(1),
                 CreatedByUserId = userId
             };
 
             await _context.DocumentInvites.AddAsync(invite);
             await _context.SaveChangesAsync();
+
+            // Send notification to friend if specified
+            if (friendUserId.HasValue)
+            {
+                var sender = await _context.Users.FindAsync(userId);
+                await _notificationService.CreateNotificationAsync(
+                    friendUserId.Value,
+                    "Document Invite",
+                    $"{sender!.Username} invited you to collaborate on '{document.Title}'",
+                    $"http://localhost:5173/invite/{token}"
+                );
+            }
 
             return new CreateInviteResponse
             {
@@ -220,7 +234,6 @@ namespace CollabEditor.API.Services
                 ExpiresAt = invite.ExpiresAt
             };
         }
-
         public async Task<JoinDocumentResponse> JoinByInviteAsync(string token, Guid userId)
         {
             var invite = await _context.DocumentInvites

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import friendService from '../services/friendService';
+import NotificationBell from '../components/NotificationBell';
 
 const DashboardPage = () => {
     const [documents, setDocuments] = useState([]);
@@ -102,17 +103,15 @@ const DashboardPage = () => {
         }
     };
 
-    const inviteFriendToDocument = async (friendUsername, documentId) => {
-        setInvitingFriend(friendUsername);
+    const inviteFriendToDocument = async (friend, documentId) => {
+        setInvitingFriend(friend.username);
         try {
-            const response = await api.post(`/document/${documentId}/invite`, {}, {
+            await api.post(`/document/${documentId}/invite?friendUserId=${friend.userId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            const inviteLink = response.data.inviteLink;
-            await navigator.clipboard.writeText(inviteLink);
-            alert(`Invite link for ${friendUsername} copied to clipboard!`);
+            alert(`Invite sent to ${friend.username}!`);
         } catch (err) {
-            console.error('Failed to generate invite', err);
+            console.error('Failed to send invite', err);
         } finally {
             setInvitingFriend(null);
             setShowInviteModal(false);
@@ -163,6 +162,7 @@ const DashboardPage = () => {
             <nav className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex justify-between items-center">
                 <h1 className="text-xl font-bold text-white">CollabAI</h1>
                 <div className="flex items-center gap-4">
+                    <NotificationBell />
                     <button
                         onClick={() => setShowFriends(!showFriends)}
                         className={`relative px-4 py-2 rounded-lg text-sm font-medium transition ${showFriends ? 'bg-blue-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
@@ -307,7 +307,6 @@ const DashboardPage = () => {
                         </div>
 
                         <div className="flex-1 overflow-auto p-4 space-y-4">
-                            {/* Pending Requests */}
                             {pendingRequests.length > 0 && (
                                 <div>
                                     <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">
@@ -340,7 +339,6 @@ const DashboardPage = () => {
                                 </div>
                             )}
 
-                            {/* Friends List */}
                             <div>
                                 <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">
                                     Friends ({friends.length})
@@ -389,11 +387,11 @@ const DashboardPage = () => {
                                             <span className="text-white text-sm">{friend.username}</span>
                                         </div>
                                         <button
-                                            onClick={() => inviteFriendToDocument(friend.username, selectedDocumentId)}
+                                            onClick={() => inviteFriendToDocument(friend, selectedDocumentId)}
                                             disabled={invitingFriend === friend.username}
                                             className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-50"
                                         >
-                                            {invitingFriend === friend.username ? 'Copying...' : 'Copy Invite'}
+                                            {invitingFriend === friend.username ? 'Sending...' : 'Send Invite'}
                                         </button>
                                     </div>
                                 ))}

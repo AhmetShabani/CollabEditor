@@ -112,6 +112,9 @@ builder.Services.AddScoped<IAIService, AIService>();
 //Friend Service
 builder.Services.AddScoped<IFriendService, FriendService>();
 
+//Notification Service
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
