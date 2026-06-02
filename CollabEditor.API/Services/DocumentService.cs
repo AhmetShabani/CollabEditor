@@ -142,16 +142,27 @@ namespace CollabEditor.API.Services
         }
         public async Task<bool> DeleteAsync(Guid documentId, Guid userId)
         {
-           var document = await _context.Documents
+            var document = await _context.Documents
                 .FirstOrDefaultAsync(d => d.Id == documentId && d.OwnerId == userId);
-            if (document == null)
-            {
-                return false;
-            }
-            _context.Remove(document);
+
+            if (document == null) return false;
+
+            // Delete related records first
+            var collaborators = _context.DocumentCollaborators
+                .Where(dc => dc.DocumentId == documentId);
+            _context.DocumentCollaborators.RemoveRange(collaborators);
+
+            var chatMessages = _context.ChatMessages
+                .Where(cm => cm.DocumentId == documentId);
+            _context.ChatMessages.RemoveRange(chatMessages);
+
+            var invites = _context.DocumentInvites
+                .Where(i => i.DocumentId == documentId);
+            _context.DocumentInvites.RemoveRange(invites);
+
+            _context.Documents.Remove(document);
             await _context.SaveChangesAsync();
             return true;
-            
         }
 
         public async Task<IEnumerable<object>> GetChatHistoryAsync(Guid documentId, Guid userId)

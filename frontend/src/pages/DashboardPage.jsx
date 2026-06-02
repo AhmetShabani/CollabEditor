@@ -261,18 +261,23 @@ const DashboardPage = () => {
                                             >
                                                 Open
                                             </button>
-                                            <button
-                                                onClick={() => { setSelectedDocumentId(doc.id); setShowInviteModal(true); }}
-                                                className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-1.5 rounded-lg text-sm transition"
-                                            >
-                                                🔗 Invite
-                                            </button>
-                                            <button
-                                                onClick={() => deleteDocument(doc.id)}
-                                                className="bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 px-4 py-1.5 rounded-lg text-sm transition"
-                                            >
-                                                Delete
-                                            </button>
+                                            {doc.ownerId === user?.id && (
+                                                
+                                                <button
+                                                    onClick={() => { setSelectedDocumentId(doc.id); setShowInviteModal(true); }}
+                                                    className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-1.5 rounded-lg text-sm transition"
+                                                >
+                                                    🔗 Invite
+                                                </button>
+                                            )}
+                                            {doc.ownerId === user?.id && (
+                                                <button
+                                                    onClick={() => deleteDocument(doc.id)}
+                                                    className="bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 px-4 py-1.5 rounded-lg text-sm transition"
+                                                >
+                                                    Delete
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -285,7 +290,15 @@ const DashboardPage = () => {
                 {showFriends && (
                     <div className="fixed right-0 top-0 h-full w-80 bg-gray-900 border-l border-gray-800 flex flex-col z-40">
                         <div className="p-4 border-b border-gray-800">
-                            <h2 className="text-white font-semibold mb-3">👥 Friends</h2>
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="text-white font-semibold">👥 Friends</h2>
+                                <button
+                                    onClick={() => setShowFriends(false)}
+                                    className="text-gray-500 hover:text-white transition"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
