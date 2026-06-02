@@ -167,11 +167,19 @@ namespace CollabEditor.API.Services
 
         public async Task<IEnumerable<object>> GetChatHistoryAsync(Guid documentId, Guid userId)
         {
+            // Check if user is owner or collaborator
             var document = await _context.Documents
-                .FirstOrDefaultAsync(d => d.Id == documentId && d.OwnerId == userId);
+                .FirstOrDefaultAsync(d => d.Id == documentId);
 
             if (document == null)
                 throw new Exception("Document not found");
+
+            var isOwner = document.OwnerId == userId;
+            var isCollaborator = await _context.DocumentCollaborators
+                .AnyAsync(dc => dc.DocumentId == documentId && dc.UserId == userId);
+
+            if (!isOwner && !isCollaborator)
+                throw new Exception("Access denied");
 
             var messages = await _context.ChatMessages
                 .Where(m => m.DocumentId == documentId)

@@ -12,9 +12,11 @@ const authService = {
     },
 
     refreshToken: async (refreshToken) => {
-        const response = await api.post('/auth/refresh', refreshToken);
-        return response.data;
-    },
+    const response = await api.post('/auth/refresh', JSON.stringify(refreshToken), {
+        headers: { 'Content-Type': 'application/json' }
+    });
+    return response.data;
+},
 
     logout: () => {
         localStorage.removeItem('token');

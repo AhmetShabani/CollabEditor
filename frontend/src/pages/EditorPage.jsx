@@ -4,7 +4,10 @@ import Editor from '@monaco-editor/react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import createConnection from '../services/signalRService';
-import ReactMarkdown from 'react-markdown';
+import EditorNavbar from '../components/Editor/EditorNavbar';
+import ChatPanel from '../components/Editor/ChatPanel';
+import AIReviewPanel from '../components/Editor/AIReviewPanel';
+import MembersPanel from '../components/Editor/MembersPanel';
 
 const getColorForUser = (connectionId) => {
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
@@ -25,11 +28,13 @@ const EditorPage = () => {
     const [review, setReview] = useState('');
     const [showReview, setShowReview] = useState(false);
     const [showChat, setShowChat] = useState(false);
+    const [showMembers, setShowMembers] = useState(false);
     const [messages, setMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const [unreadCount, setUnreadCount] = useState(0);
     const [inviteLink, setInviteLink] = useState('');
     const [showInvite, setShowInvite] = useState(false);
+    const [collaborators, setCollaborators] = useState([]);
     const isRemoteChange = useRef(false);
     const isDirty = useRef(false);
     const connectionRef = useRef(null);
@@ -38,11 +43,8 @@ const EditorPage = () => {
     const documentRef = useRef(null);
     const cursorDecorations = useRef({});
     const cursorTimeout = useRef(null);
-    const messagesEndRef = useRef(null);
     const initialMessageCount = useRef(0);
     const showChatRef = useRef(false);
-    const [showMembers, setShowMembers] = useState(false);
-    const [collaborators, setCollaborators] = useState([]);
 
     useEffect(() => {
         showChatRef.current = showChat;
@@ -53,7 +55,6 @@ const EditorPage = () => {
         fetchChatHistory();
         fetchCollaborators();
         setupSignalR();
-        
 
         return () => {
             if (connectionRef.current) {
@@ -75,15 +76,9 @@ const EditorPage = () => {
         return () => clearInterval(interval);
     }, [document]);
 
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
-
     const fetchDocument = async () => {
         try {
-            const response = await api.get(`/document/${documentId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get(`/document/${documentId}`);
             setDocument(response.data);
             documentRef.current = response.data;
             setContent(response.data.content || '');
@@ -95,13 +90,20 @@ const EditorPage = () => {
 
     const fetchChatHistory = async () => {
         try {
-            const response = await api.get(`/document/${documentId}/chat`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get(`/document/${documentId}/chat`);
             setMessages(response.data);
             initialMessageCount.current = response.data.length;
         } catch (err) {
             console.error('Failed to fetch chat history', err);
+        }
+    };
+
+    const fetchCollaborators = async () => {
+        try {
+            const response = await api.get(`/document/${documentId}/collaborators`);
+            setCollaborators(response.data);
+        } catch (err) {
+            console.error('Failed to fetch collaborators', err);
         }
     };
 
@@ -122,7 +124,6 @@ const EditorPage = () => {
 
             connection.on('UserLeft', (connectionId) => {
                 setConnectedUsers(prev => prev.filter(u => u.connectionId !== connectionId));
-                // update cursor cleanup too
                 if (editorRef.current && cursorDecorations.current[connectionId]) {
                     editorRef.current.deltaDecorations(
                         cursorDecorations.current[connectionId], []
@@ -215,8 +216,6 @@ const EditorPage = () => {
                 title: documentRef.current.title,
                 content: contentRef.current,
                 language: documentRef.current.language
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
@@ -232,12 +231,11 @@ const EditorPage = () => {
         setReview('');
         setShowReview(true);
         setShowChat(false);
+        setShowMembers(false);
         try {
             const response = await api.post('/ai/review', {
                 code: contentRef.current,
                 language: documentRef.current?.language || 'javascript'
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
             setReview(response.data.review);
         } catch (err) {
@@ -255,9 +253,7 @@ const EditorPage = () => {
 
     const clearChat = async () => {
         try {
-            await api.delete(`/document/${documentId}/chat`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.delete(`/document/${documentId}/chat`);
             setMessages([]);
             initialMessageCount.current = 0;
         } catch (err) {
@@ -267,9 +263,7 @@ const EditorPage = () => {
 
     const generateInvite = async () => {
         try {
-            const response = await api.post(`/document/${documentId}/invite`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.post(`/document/${documentId}/invite`, {});
             setInviteLink(response.data.inviteLink);
             setShowInvite(true);
         } catch (err) {
@@ -277,135 +271,46 @@ const EditorPage = () => {
         }
     };
 
-    const fetchCollaborators = async () => {
+    const removeCollaborator = async (collaboratorUserId) => {
         try {
-            const response = await api.get(`/document/${documentId}/collaborators`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setCollaborators(response.data);
+            await api.delete(`/document/${documentId}/collaborators/${collaboratorUserId}`);
+            setCollaborators(prev => prev.filter(c => c.userId !== collaboratorUserId));
         } catch (err) {
-            console.error('Failed to fetch collaborators', err);
-        }
-    };
-
-    const handleChatKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendChatMessage();
+            console.error('Failed to remove collaborator', err);
         }
     };
 
     const showSidePanel = showReview || showChat || showMembers;
     const isOwner = document?.ownerId === user?.id;
 
-    const removeCollaborator = async (collaboratorUserId) => {
-    try {
-        await api.delete(`/document/${documentId}/collaborators/${collaboratorUserId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        setCollaborators(prev => prev.filter(c => c.userId !== collaboratorUserId));
-    } catch (err) {
-        console.error('Failed to remove collaborator', err);
-    }
-};
-
     return (
         <div className="h-screen bg-gray-950 flex flex-col">
-            <nav className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className="text-gray-400 hover:text-white transition text-sm"
-                    >
-                        ← Dashboard
-                    </button>
-                    <span className="text-gray-600">|</span>
-                    <h2 className="text-white font-medium">{document?.title}</h2>
-                    <span className="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded">
-                        {document?.language}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                        Updated: {document ? new Date(document.updatedAt).toLocaleDateString() : ''}
-                    </span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded-lg">
-                            <div className="w-2 h-2 rounded-full bg-green-400" />
-                            <span className="text-gray-300 text-xs">You</span>
-                        </div>
-                        {connectedUsers.map(u => (
-                            <div
-                                key={u.connectionId}
-                                className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded-lg"
-                            >
-                                <div
-                                    style={{ background: getColorForUser(u.connectionId) }}
-                                    className="w-2 h-2 rounded-full"
-                                />
-                                <span className="text-gray-300 text-xs">
-                                    {u.username}
-                                </span>
-                            </div>
-                        ))}
-                        <span className="text-gray-500 text-xs">
-                            {connectedUsers.length + 1} online
-                        </span>
-                    </div>
-
-                    <button
-                        onClick={() => {
-                            setShowChat(!showChat);
-                            setShowReview(false);
-                            setUnreadCount(0);
-                        }}
-                        className={`relative px-4 py-1.5 rounded-lg text-sm font-medium transition ${showChat ? 'bg-green-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
-                    >
-                        💬 Chat
-                        {unreadCount > 0 && !showChat && (
-                            <>
-                                <span className="ml-1 text-xs">
-                                    ({unreadCount > 10 ? '10+' : unreadCount})
-                                </span>
-                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
-                            </>
-                        )}
-                    </button>
-
-                    <button
-                        onClick={requestAIReview}
-                        disabled={reviewing}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                    >
-                        {reviewing ? '🤖 Reviewing...' : '🤖 AI Review'}
-                    </button>
-
-                    {isOwner && (
-                        <button
-                            onClick={generateInvite}
-                            className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-1.5 rounded-lg text-sm font-medium transition"
-                        >
-                            🔗 Invite
-                        </button>
-                    )}
-
-                    <button
-                        onClick={() => { setShowMembers(!showMembers); setShowChat(false); setShowReview(false); }}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${showMembers ? 'bg-green-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
-                    >
-                        👥 Members ({collaborators.length})
-                    </button>
-
-                    <button
-                        onClick={saveDocument}
-                        disabled={saving}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                    >
-                        {saved ? '✓ Saved' : saving ? 'Saving...' : 'Save'}
-                    </button>
-                </div>
-            </nav>
+            <EditorNavbar
+                document={document}
+                connectedUsers={connectedUsers}
+                isOwner={isOwner}
+                saving={saving}
+                saved={saved}
+                reviewing={reviewing}
+                showChat={showChat}
+                showMembers={showMembers}
+                unreadCount={unreadCount}
+                onNavigateBack={() => navigate('/dashboard')}
+                onSave={saveDocument}
+                onAIReview={requestAIReview}
+                onToggleChat={() => {
+                    setShowChat(!showChat);
+                    setShowReview(false);
+                    setShowMembers(false);
+                    setUnreadCount(0);
+                }}
+                onToggleMembers={() => {
+                    setShowMembers(!showMembers);
+                    setShowChat(false);
+                    setShowReview(false);
+                }}
+                onGenerateInvite={generateInvite}
+            />
 
             <div className="flex flex-1 overflow-hidden">
                 <div className={showSidePanel ? 'w-2/3' : 'w-full'}>
@@ -426,183 +331,33 @@ const EditorPage = () => {
                 </div>
 
                 {showReview && (
-                    <div className="w-1/3 bg-gray-900 border-l border-gray-800 flex flex-col">
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-                            <h3 className="text-white font-medium text-sm">🤖 AI Review</h3>
-                            <button
-                                onClick={() => setShowReview(false)}
-                                className="text-gray-500 hover:text-white transition"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-auto p-4 text-sm">
-                            {reviewing ? (
-                                <div className="text-gray-500 text-center mt-8">
-                                    Analyzing your code...
-                                </div>
-                            ) : (
-                                <ReactMarkdown
-                                    components={{
-                                        h2: ({node, ...props}) => (
-                                            <h2 className="text-white font-bold text-base mt-4 mb-2" {...props} />
-                                        ),
-                                        h3: ({node, ...props}) => (
-                                            <h3 className="text-blue-400 font-semibold text-sm mt-4 mb-2 border-b border-gray-700 pb-1" {...props} />
-                                        ),
-                                        p: ({node, ...props}) => (
-                                            <p className="text-gray-300 text-sm mb-2" {...props} />
-                                        ),
-                                        ul: ({node, ...props}) => (
-                                            <ul className="list-disc list-inside space-y-1 mb-3" {...props} />
-                                        ),
-                                        li: ({node, ...props}) => (
-                                            <li className="text-gray-300 text-sm" {...props} />
-                                        ),
-                                        code: ({node, ...props}) => (
-                                            <code className="bg-gray-800 text-blue-300 px-1 rounded text-xs" {...props} />
-                                        ),
-                                        pre: ({node, ...props}) => (
-                                            <pre className="bg-gray-800 text-gray-300 p-3 rounded-lg text-xs overflow-auto mb-3" {...props} />
-                                        ),
-                                        strong: ({node, ...props}) => (
-                                            <strong className="text-white font-semibold" {...props} />
-                                        ),
-                                    }}
-                                >
-                                    {review}
-                                </ReactMarkdown>
-                            )}
-                        </div>
-                    </div>
+                    <AIReviewPanel
+                        review={review}
+                        reviewing={reviewing}
+                        onClose={() => setShowReview(false)}
+                    />
                 )}
 
                 {showChat && (
-                    <div className="w-1/3 bg-gray-900 border-l border-gray-800 flex flex-col">
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-                            <h3 className="text-white font-medium text-sm">💬 Chat</h3>
-                            <div className="flex items-center gap-2">
-                                {isOwner && (
-                                    <button
-                                        onClick={clearChat}
-                                        className="text-red-400 hover:text-red-300 text-xs transition"
-                                    >
-                                        Clear
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => setShowChat(false)}
-                                    className="text-gray-500 hover:text-white transition"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-                            
-                        </div>
-
-                        <div className="flex-1 overflow-auto p-4 space-y-3">
-                            {messages.length === 0 ? (
-                                <div className="text-gray-500 text-center text-sm mt-8">
-                                    No messages yet. Say hello! 👋
-                                </div>
-                            ) : (
-                                messages.map((msg, index) => (
-                                    <div key={index} className={`flex flex-col gap-0.5 ${msg.username === user?.username ? 'items-end' : 'items-start'}`}>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-blue-400 text-xs font-medium">
-                                                {msg.username === user?.username ? 'You' : msg.username}
-                                            </span>
-                                            <span className="text-gray-600 text-xs">
-                                                {new Date(msg.timestamp).toLocaleTimeString()}
-                                            </span>
-                                        </div>
-                                        <p className={`text-sm px-3 py-2 rounded-lg max-w-xs ${msg.username === user?.username ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300'}`}>
-                                            {msg.message}
-                                        </p>
-                                    </div>
-                                ))
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
-
-                        <div className="p-3 border-t border-gray-800 flex gap-2">
-                            <input
-                                type="text"
-                                value={chatInput}
-                                onChange={(e) => setChatInput(e.target.value)}
-                                onKeyDown={handleChatKeyDown}
-                                placeholder="Type a message..."
-                                className="flex-1 bg-gray-800 text-white border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                            />
-                            <button
-                                onClick={sendChatMessage}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm transition"
-                            >
-                                Send
-                            </button>
-                        </div>
-                    </div>
-
-
+                    <ChatPanel
+                        messages={messages}
+                        chatInput={chatInput}
+                        setChatInput={setChatInput}
+                        sendChatMessage={sendChatMessage}
+                        clearChat={clearChat}
+                        isOwner={isOwner}
+                        onClose={() => setShowChat(false)}
+                    />
                 )}
+
                 {showMembers && (
-    <div className="w-1/3 bg-gray-900 border-l border-gray-800 flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-            <h3 className="text-white font-medium text-sm">👥 Members</h3>
-            <button
-                onClick={() => setShowMembers(false)}
-                className="text-gray-500 hover:text-white transition"
-            >
-                ✕
-            </button>
-        </div>
-        <div className="flex-1 overflow-auto p-4 space-y-4">
-            {/* Owner */}
-            <div>
-                <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">Owner</p>
-                {collaborators.filter(c => c.role === 'Owner').map((c, i) => (
-                    <div key={i} className="flex items-center gap-3 bg-gray-800 px-3 py-2 rounded-lg">
-                        <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                            {c.username[0].toUpperCase()}
-                        </div>
-                        <div>
-                            <p className="text-white text-sm font-medium">{c.username}</p>
-                            <p className="text-gray-500 text-xs">Owner</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-            {/* Collaborators */}
-            {collaborators.filter(c => c.role !== 'Owner').length > 0 && (
-                <div>
-                    <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">Collaborators</p>
-                    {collaborators.filter(c => c.role !== 'Owner').map((c, i) => (
-                        <div key={i} className="flex items-center gap-3 bg-gray-800 px-3 py-2 rounded-lg mb-2">
-                            <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                                {c.username[0].toUpperCase()}
-                            </div>
-                            <div>
-                                <p className="text-white text-sm font-medium">{c.username}</p>
-                                <p className="text-gray-500 text-xs">Collaborator</p>
-                            </div>
-                            {isOwner && (
-                                <button
-                                    className="ml-auto text-red-400 hover:text-red-300 text-xs transition"
-                                    onClick={() => removeCollaborator(c.userId)}
-                                >
-                                    Remove
-                                </button>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            )}
-            {collaborators.filter(c => c.role !== 'Owner').length === 0 && (
-                <p className="text-gray-500 text-sm text-center mt-4">No collaborators yet. Use the Invite button to add people.</p>
-            )}
-        </div>
-    </div>
-)}
+                    <MembersPanel
+                        collaborators={collaborators}
+                        isOwner={isOwner}
+                        onRemoveCollaborator={removeCollaborator}
+                        onClose={() => setShowMembers(false)}
+                    />
+                )}
             </div>
 
             {/* Invite Modal */}
@@ -610,7 +365,7 @@ const EditorPage = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-md w-full mx-4">
                         <h3 className="text-white font-semibold mb-4">🔗 Invite Collaborator</h3>
-                        <p className="text-gray-400 text-sm mb-3">Share this link — expires in 7 days:</p>
+                        <p className="text-gray-400 text-sm mb-3">Share this link — expires in 1 day:</p>
                         <div className="flex gap-2">
                             <input
                                 type="text"
