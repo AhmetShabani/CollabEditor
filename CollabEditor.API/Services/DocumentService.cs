@@ -117,11 +117,22 @@ namespace CollabEditor.API.Services
 
             var document = await _context.Documents
             .Include(d => d.Owner)
-            .FirstOrDefaultAsync(d => d.Id == documentId && d.OwnerId == userId);
+            .FirstOrDefaultAsync(d => d.Id == documentId);
+
             if (document == null)
             {
                 throw new Exception("Document not found");
-            };
+            }
+
+            var isOwner = document.OwnerId == userId;
+
+            var isCollaborator = await _context.DocumentCollaborators
+                .AnyAsync(dc => dc.DocumentId == documentId && dc.UserId == userId);
+
+            if (!isOwner && !isCollaborator)
+            {
+                throw new Exception("Access denied");
+            }
             document.Title = update.Title;
             document.Content = update.Content;
             document.Language = update.Language;
@@ -297,6 +308,11 @@ namespace CollabEditor.API.Services
 
             await _context.DocumentCollaborators.AddAsync(collaborator);
             await _context.SaveChangesAsync();
+
+            // Delete invite after use
+            _context.DocumentInvites.Remove(invite);
+            await _context.SaveChangesAsync();
+
 
             return new JoinDocumentResponse
             {

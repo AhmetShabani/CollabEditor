@@ -1,5 +1,4 @@
 import axios from 'axios';
-import authService from './authService';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL,
@@ -30,11 +29,18 @@ api.interceptors.response.use(
                     return Promise.reject(error);
                 }
 
-                const response = await authService.refreshToken(refreshToken);
-                const newToken = response.token;
+                // Use plain axios to avoid infinite loop
+                const response = await axios.post(
+                    `${import.meta.env.VITE_API_URL}/auth/refresh`,
+                    JSON.stringify(refreshToken),
+                    { headers: { 'Content-Type': 'application/json' } }
+                );
+
+                const newToken = response.data.token;
+                const newRefreshToken = response.data.refreshToken;
 
                 localStorage.setItem('token', newToken);
-                localStorage.setItem('refreshToken', response.refreshToken);
+                localStorage.setItem('refreshToken', newRefreshToken);
 
                 originalRequest.headers.Authorization = `Bearer ${newToken}`;
                 return api(originalRequest);

@@ -72,7 +72,7 @@ const EditorPage = () => {
                 saveDocument();
                 isDirty.current = false;
             }
-        }, 30000);
+        }, 5000);
         return () => clearInterval(interval);
     }, [document]);
 
@@ -169,6 +169,23 @@ const EditorPage = () => {
                     oldDecorations, newDecorations
                 );
             });
+           
+
+                connection.on('RequestCurrentContent', (requestingConnectionId) => {
+                    if (connectionRef.current && contentRef.current) {
+                        connectionRef.current.invoke(
+                            'SendCurrentContent',
+                            requestingConnectionId,
+                            contentRef.current
+                        ).catch(() => {});
+                    }
+                });
+
+                connection.on('ReceiveCurrentContent', (content) => {
+                    isRemoteChange.current = true;
+                    setContent(content);
+                    contentRef.current = content;
+                });
 
             await connection.start();
             console.log('SignalR Connected');

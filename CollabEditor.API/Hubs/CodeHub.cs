@@ -21,6 +21,10 @@ namespace CollabEditor.API.Hubs
             await Groups.AddToGroupAsync(Context.ConnectionId, documentId);
             var username = Context.User?.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
             await Clients.OthersInGroup(documentId).SendAsync("UserJoined", Context.ConnectionId, username);
+
+            // Request current content from existing users
+            await Task.Delay(200);
+            await Clients.OthersInGroup(documentId).SendAsync("RequestCurrentContent", Context.ConnectionId);
         }
         public async Task LeaveDocument(string documentId)
         {
@@ -61,6 +65,10 @@ namespace CollabEditor.API.Hubs
             await Clients.Others.SendAsync("UserLeft", Context.ConnectionId);
             await base.OnDisconnectedAsync(exception);
         }
-        
+        public async Task SendCurrentContent(string targetConnectionId, string content)
+        {
+            await Clients.Client(targetConnectionId).SendAsync("ReceiveCurrentContent", content);
+        }
+
     }
 }
