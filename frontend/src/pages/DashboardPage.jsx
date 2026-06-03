@@ -21,6 +21,8 @@ const DashboardPage = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [selectedDocumentId, setSelectedDocumentId] = useState(null);
     const [invitingFriend, setInvitingFriend] = useState(null);
+    const [selectedDocumentCollaborators, setSelectedDocumentCollaborators] = useState([]);
+    const [sentInvites, setSentInvites] = useState([]);
 
     const { user, token, logout } = useAuth();
     const navigate = useNavigate();
@@ -103,18 +105,32 @@ const DashboardPage = () => {
         }
     };
 
+    const openInviteModal = async (documentId) => {
+        setSelectedDocumentId(documentId);
+        setSentInvites([]);
+        try {
+            const response = await api.get(`/document/${documentId}/collaborators`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setSelectedDocumentCollaborators(response.data.map(c => c.userId));
+        } catch (err) {
+            console.error('Failed to fetch collaborators', err);
+            setSelectedDocumentCollaborators([]);
+        }
+        setShowInviteModal(true);
+    };
+
     const inviteFriendToDocument = async (friend, documentId) => {
         setInvitingFriend(friend.username);
         try {
             await api.post(`/document/${documentId}/invite?friendUserId=${friend.userId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            alert(`Invite sent to ${friend.username}!`);
+            setSentInvites(prev => [...prev, friend.userId]);
         } catch (err) {
             console.error('Failed to send invite', err);
         } finally {
             setInvitingFriend(null);
-            setShowInviteModal(false);
         }
     };
 
@@ -262,9 +278,8 @@ const DashboardPage = () => {
                                                 Open
                                             </button>
                                             {doc.ownerId === user?.id && (
-                                                
                                                 <button
-                                                    onClick={() => { setSelectedDocumentId(doc.id); setShowInviteModal(true); }}
+                                                    onClick={() => openInviteModal(doc.id)}
                                                     className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-1.5 rounded-lg text-sm transition"
                                                 >
                                                     🔗 Invite
@@ -391,23 +406,41 @@ const DashboardPage = () => {
                             <p className="text-gray-400 text-sm">No friends yet. Add friends first!</p>
                         ) : (
                             <div className="space-y-2">
-                                {friends.map(friend => (
-                                    <div key={friend.friendshipId} className="flex items-center justify-between bg-gray-800 px-4 py-3 rounded-lg">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                                                {friend.username[0].toUpperCase()}
+                                {friends.map(friend => {
+                                    const isAlreadyCollaborator = selectedDocumentCollaborators.includes(friend.userId);
+                                    const isInviteSent = sentInvites.includes(friend.userId);
+                                    return (
+                                        <div key={friend.friendshipId} className="flex items-center justify-between bg-gray-800 px-4 py-3 rounded-lg">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                                                    {friend.username[0].toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <span className="text-white text-sm">{friend.username}</span>
+                                                    {isAlreadyCollaborator && (
+                                                        <p className="text-green-400 text-xs">Already a collaborator</p>
+                                                    )}
+                                                    {isInviteSent && !isAlreadyCollaborator && (
+                                                        <p className="text-yellow-400 text-xs">Invite sent</p>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <span className="text-white text-sm">{friend.username}</span>
+                                            {isAlreadyCollaborator ? (
+                                                <span className="text-green-400 text-xs px-3 py-1.5">✓ Joined</span>
+                                            ) : isInviteSent ? (
+                                                <span className="text-yellow-400 text-xs px-3 py-1.5">📨 Sent</span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => inviteFriendToDocument(friend, selectedDocumentId)}
+                                                    disabled={invitingFriend === friend.username}
+                                                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-50"
+                                                >
+                                                    {invitingFriend === friend.username ? 'Sending...' : 'Send Invite'}
+                                                </button>
+                                            )}
                                         </div>
-                                        <button
-                                            onClick={() => inviteFriendToDocument(friend, selectedDocumentId)}
-                                            disabled={invitingFriend === friend.username}
-                                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-50"
-                                        >
-                                            {invitingFriend === friend.username ? 'Sending...' : 'Send Invite'}
-                                        </button>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                         <button
