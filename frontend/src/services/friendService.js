@@ -1,45 +1,33 @@
 import api from './api';
 
 const friendService = {
-    sendRequest: async (username, token) => {
-        const response = await api.post(`/friend/request/${username}`, {}, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+    sendRequest: async (username) => {
+        const response = await api.post(`/friend/request/${username}`, {});
         return response.data;
     },
 
-    getPendingRequests: async (token) => {
-        const response = await api.get('/friend/requests', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+    getPendingRequests: async () => {
+        const response = await api.get('/friend/requests');
         return response.data;
     },
 
-    acceptRequest: async (requestId, token) => {
-        const response = await api.post(`/friend/accept/${requestId}`, {}, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+    acceptRequest: async (requestId) => {
+        const response = await api.post(`/friend/accept/${requestId}`, {});
         return response.data;
     },
 
-    declineRequest: async (requestId, token) => {
-        const response = await api.post(`/friend/decline/${requestId}`, {}, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+    declineRequest: async (requestId) => {
+        const response = await api.post(`/friend/decline/${requestId}`, {});
         return response.data;
     },
 
-    getFriends: async (token) => {
-        const response = await api.get('/friend', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+    getFriends: async () => {
+        const response = await api.get('/friend');
         return response.data;
     },
 
-    removeFriend: async (friendshipId, token) => {
-        const response = await api.delete(`/friend/${friendshipId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+    removeFriend: async (friendshipId) => {
+        const response = await api.delete(`/friend/${friendshipId}`);
         return response.data;
     }
 };

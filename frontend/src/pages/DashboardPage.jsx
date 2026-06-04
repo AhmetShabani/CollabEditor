@@ -24,7 +24,7 @@ const DashboardPage = () => {
     const [selectedDocumentCollaborators, setSelectedDocumentCollaborators] = useState([]);
     const [sentInvites, setSentInvites] = useState([]);
 
-    const { user, token, logout } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -35,9 +35,7 @@ const DashboardPage = () => {
 
     const fetchDocuments = async () => {
         try {
-            const response = await api.get('/document', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get('/document');
             setDocuments(response.data);
         } catch (err) {
             setError('Failed to fetch documents');
@@ -48,7 +46,7 @@ const DashboardPage = () => {
 
     const fetchFriends = async () => {
         try {
-            const data = await friendService.getFriends(token);
+            const data = await friendService.getFriends();
             setFriends(data);
         } catch (err) {
             console.error('Failed to fetch friends', err);
@@ -57,7 +55,7 @@ const DashboardPage = () => {
 
     const fetchPendingRequests = async () => {
         try {
-            const data = await friendService.getPendingRequests(token);
+            const data = await friendService.getPendingRequests();
             setPendingRequests(data);
         } catch (err) {
             console.error('Failed to fetch pending requests', err);
@@ -69,7 +67,7 @@ const DashboardPage = () => {
         setFriendError('');
         setFriendSuccess('');
         try {
-            await friendService.sendRequest(friendUsername, token);
+            await friendService.sendRequest(friendUsername);
             setFriendSuccess(`Friend request sent to ${friendUsername}`);
             setFriendUsername('');
         } catch (err) {
@@ -79,7 +77,7 @@ const DashboardPage = () => {
 
     const acceptRequest = async (requestId) => {
         try {
-            await friendService.acceptRequest(requestId, token);
+            await friendService.acceptRequest(requestId);
             setPendingRequests(prev => prev.filter(r => r.id !== requestId));
             fetchFriends();
         } catch (err) {
@@ -89,7 +87,7 @@ const DashboardPage = () => {
 
     const declineRequest = async (requestId) => {
         try {
-            await friendService.declineRequest(requestId, token);
+            await friendService.declineRequest(requestId);
             setPendingRequests(prev => prev.filter(r => r.id !== requestId));
         } catch (err) {
             console.error('Failed to decline request', err);
@@ -98,7 +96,7 @@ const DashboardPage = () => {
 
     const removeFriend = async (friendshipId) => {
         try {
-            await friendService.removeFriend(friendshipId, token);
+            await friendService.removeFriend(friendshipId);
             setFriends(prev => prev.filter(f => f.friendshipId !== friendshipId));
         } catch (err) {
             console.error('Failed to remove friend', err);
@@ -109,9 +107,7 @@ const DashboardPage = () => {
         setSelectedDocumentId(documentId);
         setSentInvites([]);
         try {
-            const response = await api.get(`/document/${documentId}/collaborators`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get(`/document/${documentId}/collaborators`);
             setSelectedDocumentCollaborators(response.data.map(c => c.userId));
         } catch (err) {
             console.error('Failed to fetch collaborators', err);
@@ -123,9 +119,7 @@ const DashboardPage = () => {
     const inviteFriendToDocument = async (friend, documentId) => {
         setInvitingFriend(friend.username);
         try {
-            await api.post(`/document/${documentId}/invite?friendUserId=${friend.userId}`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.post(`/document/${documentId}/invite?friendUserId=${friend.userId}`, {});
             setSentInvites(prev => [...prev, friend.userId]);
         } catch (err) {
             console.error('Failed to send invite', err);
@@ -142,8 +136,6 @@ const DashboardPage = () => {
                 title: newTitle,
                 content: '',
                 language: newLanguage
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
             setDocuments([...documents, response.data]);
             setNewTitle('');
@@ -156,9 +148,7 @@ const DashboardPage = () => {
 
     const deleteDocument = async (id) => {
         try {
-            await api.delete(`/document/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.delete(`/document/${id}`);
             setDocuments(documents.filter(d => d.id !== id));
         } catch (err) {
             setError('Failed to delete document');
@@ -174,7 +164,6 @@ const DashboardPage = () => {
 
     return (
         <div className="min-h-screen bg-gray-950 text-white">
-            {/* Navbar */}
             <nav className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex justify-between items-center">
                 <h1 className="text-xl font-bold text-white">CollabAI</h1>
                 <div className="flex items-center gap-4">
@@ -201,9 +190,7 @@ const DashboardPage = () => {
             </nav>
 
             <div className="flex">
-                {/* Main Content */}
                 <div className={`flex-1 max-w-5xl mx-auto px-6 py-10 ${showFriends ? 'mr-80' : ''}`}>
-                    {/* Create Document */}
                     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-8">
                         <h2 className="text-lg font-semibold text-white mb-4">New Document</h2>
                         <div className="flex gap-3">
@@ -235,7 +222,6 @@ const DashboardPage = () => {
                         </div>
                     </div>
 
-                    {/* Documents List */}
                     <div>
                         <h2 className="text-lg font-semibold text-white mb-4">My Documents</h2>
 
@@ -301,7 +287,6 @@ const DashboardPage = () => {
                     </div>
                 </div>
 
-                {/* Friends Panel */}
                 {showFriends && (
                     <div className="fixed right-0 top-0 h-full w-80 bg-gray-900 border-l border-gray-800 flex flex-col z-40">
                         <div className="p-4 border-b border-gray-800">
@@ -397,7 +382,6 @@ const DashboardPage = () => {
                 )}
             </div>
 
-            {/* Invite Modal */}
             {showInviteModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-md w-full mx-4">
