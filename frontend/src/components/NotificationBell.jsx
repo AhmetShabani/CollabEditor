@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import notificationService from '../services/notificationService';
 import createConnection from '../services/signalRService';
+import api from '../services/api';
 
 const NotificationBell = () => {
-    const { token } = useAuth();
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [showPanel, setShowPanel] = useState(false);
@@ -24,7 +24,7 @@ const NotificationBell = () => {
 
     const fetchNotifications = async () => {
         try {
-            const data = await notificationService.getNotifications(token);
+            const data = await notificationService.getNotifications();
             setNotifications(data);
         } catch (err) {
             console.error('Failed to fetch notifications', err);
@@ -47,15 +47,29 @@ const NotificationBell = () => {
         }
     };
 
-    const handleNotificationClick = async (notification) => {
+    const handleAcceptInvite = async (notification, e) => {
+        e.stopPropagation();
         try {
-            await notificationService.markAsRead(notification.id, token);
+            const inviteToken = notification.link.split('/invite/')[1];
+            const response = await api.post(`/document/join/${inviteToken}`);
+            await notificationService.markAsRead(notification.id);
             setNotifications(prev =>
                 prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n)
             );
-            if (notification.link) {
-                navigate(notification.link.replace('http://localhost:5173', ''));
-            }
+            setShowPanel(false);
+            navigate(`/editor/${response.data.documentId}`);
+        } catch (err) {
+            console.error('Failed to accept invite', err);
+        }
+    };
+
+    const handleNotificationClick = async (notification) => {
+        try {
+            await notificationService.markAsRead(notification.id);
+            setNotifications(prev =>
+                prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n)
+            );
+            setShowPanel(false);
         } catch (err) {
             console.error('Failed to mark as read', err);
         }
@@ -63,7 +77,7 @@ const NotificationBell = () => {
 
     const markAllAsRead = async () => {
         try {
-            await notificationService.markAllAsRead(token);
+            await notificationService.markAllAsRead();
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
         } catch (err) {
             console.error('Failed to mark all as read', err);
@@ -116,12 +130,20 @@ const NotificationBell = () => {
                                         {!notification.isRead && (
                                             <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
                                         )}
-                                        <div className={!notification.isRead ? '' : 'ml-4'}>
+                                        <div className={`flex-1 ${!notification.isRead ? '' : 'ml-4'}`}>
                                             <p className="text-white text-sm font-medium">{notification.title}</p>
                                             <p className="text-gray-400 text-xs mt-0.5">{notification.message}</p>
                                             <p className="text-gray-600 text-xs mt-1">
                                                 {new Date(notification.createdAt).toLocaleTimeString()}
                                             </p>
+                                            {notification.link?.includes('/invite/') && !notification.isRead && (
+                                                <button
+                                                    onClick={(e) => handleAcceptInvite(notification, e)}
+                                                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-xs transition"
+                                                >
+                                                    Accept Invite
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
