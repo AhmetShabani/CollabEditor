@@ -115,6 +115,9 @@ builder.Services.AddScoped<IFriendService, FriendService>();
 //Notification Service
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
+//Admin Service
+builder.Services.AddScoped<IAdminService, AdminService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
