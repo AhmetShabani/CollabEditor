@@ -229,6 +229,18 @@ namespace CollabEditor.API.Services
             if (document == null)
                 throw new Exception("Document not found or you are not the owner");
 
+            // Check if active invite already exists for this document
+            if (friendUserId.HasValue)
+            {
+                var existingInvite = await _context.DocumentInvites
+                    .FirstOrDefaultAsync(i => i.DocumentId == documentId
+                        && i.ExpiresAt > DateTime.UtcNow
+                        && i.CreatedByUserId == userId);
+
+                if (existingInvite != null)
+                    throw new Exception("You already have an active invite for this document");
+            }
+
             var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
                 .Replace("+", "-").Replace("/", "_").Replace("=", "");
 
@@ -245,7 +257,6 @@ namespace CollabEditor.API.Services
             await _context.DocumentInvites.AddAsync(invite);
             await _context.SaveChangesAsync();
 
-            // Send notification to friend if specified
             if (friendUserId.HasValue)
             {
                 var sender = await _context.Users.FindAsync(userId);
