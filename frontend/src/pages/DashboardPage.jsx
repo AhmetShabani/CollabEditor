@@ -180,6 +180,14 @@ const DashboardPage = () => {
                         )}
                     </button>
                     <span className="text-gray-400">👤 {user?.username}</span>
+                    {user?.role === 'Admin' && (
+                        <button
+                            onClick={() => navigate('/admin')}
+                            className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-4 py-2 rounded-lg text-sm font-medium transition"
+                        >
+                            ⚙️ Admin
+                        </button>
+                    )}
                     <button
                         onClick={logout}
                         className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm transition"
