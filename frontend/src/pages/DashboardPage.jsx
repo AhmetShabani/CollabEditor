@@ -164,77 +164,83 @@ const DashboardPage = () => {
 
     return (
         <div className="min-h-screen bg-gray-950 text-white">
-            <nav className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex justify-between items-center">
-                <h1 className="text-xl font-bold text-white">CollabAI</h1>
-                <div className="flex items-center gap-4">
+            {/* Navbar */}
+            <nav className="bg-gray-900 border-b border-gray-800 px-4 sm:px-6 py-4 flex justify-between items-center">
+                <h1 className="text-lg sm:text-xl font-bold text-white">CollabAI</h1>
+                <div className="flex items-center gap-2 sm:gap-4">
                     <NotificationBell />
                     <button
                         onClick={() => setShowFriends(!showFriends)}
-                        className={`relative px-4 py-2 rounded-lg text-sm font-medium transition ${showFriends ? 'bg-blue-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
+                        className={`relative px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition ${showFriends ? 'bg-blue-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
                     >
-                        👥 Friends
+                        👥 <span className="hidden sm:inline">Friends</span>
                         {pendingRequests.length > 0 && (
                             <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center">
                                 {pendingRequests.length}
                             </span>
                         )}
                     </button>
-                    <span className="text-gray-400">👤 {user?.username}</span>
+                    <span className="text-gray-400 text-sm hidden sm:inline">👤 {user?.username}</span>
                     {user?.role === 'Admin' && (
                         <button
                             onClick={() => navigate('/admin')}
-                            className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-4 py-2 rounded-lg text-sm font-medium transition"
+                            className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition"
                         >
-                            ⚙️ Admin
+                            ⚙️ <span className="hidden sm:inline">Admin</span>
                         </button>
                     )}
                     <button
                         onClick={logout}
-                        className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm transition"
+                        className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 sm:px-4 py-2 rounded-lg text-sm transition"
                     >
-                        Logout
+                        <span className="hidden sm:inline">Logout</span>
+                        <span className="sm:hidden">↪</span>
                     </button>
                 </div>
             </nav>
 
             <div className="flex">
-                <div className={`flex-1 max-w-5xl mx-auto px-6 py-10 ${showFriends ? 'mr-80' : ''}`}>
-                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-8">
-                        <h2 className="text-lg font-semibold text-white mb-4">New Document</h2>
-                        <div className="flex gap-3">
+                <div className={`flex-1 px-4 sm:px-6 py-6 sm:py-10 transition-all ${showFriends ? 'sm:mr-80' : ''}`}>
+                    {/* Create Document */}
+                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8">
+                        <h2 className="text-base sm:text-lg font-semibold text-white mb-4">New Document</h2>
+                        <div className="flex flex-col sm:flex-row gap-3">
                             <input
                                 type="text"
                                 placeholder="Document title..."
                                 value={newTitle}
                                 onChange={(e) => setNewTitle(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && createDocument()}
-                                className="flex-1 bg-gray-800 text-white border border-gray-700 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500"
+                                className="flex-1 bg-gray-800 text-white border border-gray-700 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 text-sm"
                             />
-                            <select
-                                value={newLanguage}
-                                onChange={(e) => setNewLanguage(e.target.value)}
-                                className="bg-gray-800 text-white border border-gray-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-blue-500"
-                            >
-                                <option value="javascript">JavaScript</option>
-                                <option value="typescript">TypeScript</option>
-                                <option value="csharp">C#</option>
-                                <option value="python">Python</option>
-                            </select>
-                            <button
-                                onClick={createDocument}
-                                disabled={creating || !newTitle.trim()}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium transition disabled:opacity-50"
-                            >
-                                {creating ? 'Creating...' : '+ Create'}
-                            </button>
+                            <div className="flex gap-3">
+                                <select
+                                    value={newLanguage}
+                                    onChange={(e) => setNewLanguage(e.target.value)}
+                                    className="flex-1 sm:flex-none bg-gray-800 text-white border border-gray-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-blue-500 text-sm"
+                                >
+                                    <option value="javascript">JavaScript</option>
+                                    <option value="typescript">TypeScript</option>
+                                    <option value="csharp">C#</option>
+                                    <option value="python">Python</option>
+                                </select>
+                                <button
+                                    onClick={createDocument}
+                                    disabled={creating || !newTitle.trim()}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium transition disabled:opacity-50 text-sm whitespace-nowrap"
+                                >
+                                    {creating ? 'Creating...' : '+ Create'}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
+                    {/* Documents List */}
                     <div>
-                        <h2 className="text-lg font-semibold text-white mb-4">My Documents</h2>
+                        <h2 className="text-base sm:text-lg font-semibold text-white mb-4">My Documents</h2>
 
                         {error && (
-                            <div className="bg-red-500/10 border border-red-500 text-red-400 px-4 py-3 rounded-lg mb-4">
+                            <div className="bg-red-500/10 border border-red-500 text-red-400 px-4 py-3 rounded-lg mb-4 text-sm">
                                 {error}
                             </div>
                         )}
@@ -242,7 +248,7 @@ const DashboardPage = () => {
                         {loading ? (
                             <div className="text-gray-400 text-center py-12">Loading...</div>
                         ) : documents.length === 0 ? (
-                            <div className="text-gray-500 text-center py-12 border border-dashed border-gray-800 rounded-2xl">
+                            <div className="text-gray-500 text-center py-12 border border-dashed border-gray-800 rounded-2xl text-sm">
                                 No documents yet. Create your first one above!
                             </div>
                         ) : (
@@ -250,39 +256,39 @@ const DashboardPage = () => {
                                 {documents.map(doc => (
                                     <div
                                         key={doc.id}
-                                        className="bg-gray-900 border border-gray-800 rounded-xl px-5 py-4 flex items-center justify-between hover:border-gray-700 transition"
+                                        className="bg-gray-900 border border-gray-800 rounded-xl px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-gray-700 transition"
                                     >
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                                             <span className={`text-xs px-2 py-1 rounded-md font-medium ${languageColors[doc.language] || 'bg-gray-700 text-gray-300'}`}>
                                                 {doc.language}
                                             </span>
-                                            <span className="text-white font-medium">{doc.title}</span>
-                                            <span className="text-gray-500 text-sm">
+                                            <span className="text-white font-medium text-sm">{doc.title}</span>
+                                            <span className="text-gray-500 text-xs hidden sm:inline">
                                                 Created: {new Date(doc.createdAt).toLocaleDateString()}
                                             </span>
-                                            <span className="text-gray-500 text-sm">
+                                            <span className="text-gray-500 text-xs hidden sm:inline">
                                                 Updated: {new Date(doc.updatedAt).toLocaleDateString()}
                                             </span>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 flex-shrink-0">
                                             <button
                                                 onClick={() => navigate(`/editor/${doc.id}`)}
-                                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm transition"
+                                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-1.5 rounded-lg text-sm transition"
                                             >
                                                 Open
                                             </button>
                                             {doc.ownerId === user?.id && (
                                                 <button
                                                     onClick={() => openInviteModal(doc.id)}
-                                                    className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-1.5 rounded-lg text-sm transition"
+                                                    className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 sm:px-4 py-1.5 rounded-lg text-sm transition"
                                                 >
-                                                    🔗 Invite
+                                                    🔗
                                                 </button>
                                             )}
                                             {doc.ownerId === user?.id && (
                                                 <button
                                                     onClick={() => deleteDocument(doc.id)}
-                                                    className="bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 px-4 py-1.5 rounded-lg text-sm transition"
+                                                    className="bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 px-3 sm:px-4 py-1.5 rounded-lg text-sm transition"
                                                 >
                                                     Delete
                                                 </button>
@@ -295,8 +301,9 @@ const DashboardPage = () => {
                     </div>
                 </div>
 
+                {/* Friends Panel */}
                 {showFriends && (
-                    <div className="fixed right-0 top-0 h-full w-80 bg-gray-900 border-l border-gray-800 flex flex-col z-40">
+                    <div className="fixed right-0 top-0 h-full w-full sm:w-80 bg-gray-900 border-l border-gray-800 flex flex-col z-40">
                         <div className="p-4 border-b border-gray-800">
                             <div className="flex items-center justify-between mb-3">
                                 <h2 className="text-white font-semibold">👥 Friends</h2>
@@ -390,9 +397,10 @@ const DashboardPage = () => {
                 )}
             </div>
 
+            {/* Invite Modal */}
             {showInviteModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-md w-full mx-4">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-md w-full">
                         <h3 className="text-white font-semibold mb-4">🔗 Invite Friend</h3>
                         {friends.length === 0 ? (
                             <p className="text-gray-400 text-sm">No friends yet. Add friends first!</p>
