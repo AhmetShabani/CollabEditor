@@ -29,7 +29,6 @@ api.interceptors.response.use(
                     return Promise.reject(error);
                 }
 
-                // Use plain axios to avoid infinite loop
                 const response = await axios.post(
                     `${import.meta.env.VITE_API_URL}/auth/refresh`,
                     JSON.stringify(refreshToken),
